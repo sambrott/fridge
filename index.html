@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sam's fridge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@500;600&display=swap"
+    rel="stylesheet"
+  />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -191,9 +197,36 @@
       line-height: 1.5;
     }
     #err.is-visible { display: flex; }
+    /*
+      American Grotesk (Klim) is commercial; stack uses it when installed locally.
+      Libre Franklin loads from Google Fonts as the web fallback (Franklin Gothic lineage).
+    */
+    #intro-tagline {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 9;
+      margin: 0;
+      padding: 16px 22px max(14px, env(safe-area-inset-top));
+      text-align: center;
+      font-family: 'American Grotesk', 'Libre Franklin', 'Franklin Gothic Medium', 'Arial Narrow',
+        system-ui, sans-serif;
+      font-size: clamp(0.94rem, 2.4vw, 1.2rem);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, 0.94);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+      pointer-events: none;
+    }
+    #intro-tagline.is-hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
+  <p id="intro-tagline">This is my fridge. Leave your mark on it</p>
   <div id="canvas-wrap"></div>
   <div id="chalk-ui" aria-label="Chalk drawing tools">
     <button type="button" id="chalk-back">Back</button>
@@ -283,6 +316,7 @@
     const chalkStrokeBtn = document.getElementById('chalk-stroke');
     const chalkEraserBtn = document.getElementById('chalk-eraser');
     const chalkUndoBtn = document.getElementById('chalk-undo');
+    const introTagline = document.getElementById('intro-tagline');
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xb91c1c);
@@ -820,6 +854,7 @@
       initUndoStackForFace(face);
       viewMode = 'draw';
       chalkUi.classList.add('is-visible');
+      introTagline.classList.add('is-hidden');
       doorBtn.style.pointerEvents = 'none';
       doorBtn.style.opacity = '0.35';
 
@@ -865,6 +900,7 @@
         controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
         controls.touches.ONE = THREE.TOUCH.ROTATE;
         controls.enableRotate = true;
+        introTagline.classList.remove('is-hidden');
         return;
       }
 
@@ -888,6 +924,7 @@
       controls.touches.ONE = THREE.TOUCH.ROTATE;
       controls.enableRotate = true;
 
+      introTagline.classList.remove('is-hidden');
       startCameraAnim(bak.pos, bak.target, 0.55);
     }
 
