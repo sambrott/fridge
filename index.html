@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@500;600;700&display=swap"
     rel="stylesheet"
   />
   <style>
@@ -198,8 +198,8 @@
     }
     #err.is-visible { display: flex; }
     /*
-      American Grotesk (Klim) is commercial; stack uses it when installed locally.
-      Libre Franklin loads from Google Fonts as the web fallback (Franklin Gothic lineage).
+      American Grotesk Bold when installed locally (Klim, commercial).
+      Libre Franklin 700 from Google Fonts as the bold web fallback.
     */
     #intro-tagline {
       position: fixed;
@@ -208,12 +208,12 @@
       right: 0;
       z-index: 9;
       margin: 0;
-      padding: 16px 22px max(14px, env(safe-area-inset-top));
+      padding: 20px 24px max(16px, env(safe-area-inset-top));
       text-align: center;
       font-family: 'American Grotesk', 'Libre Franklin', 'Franklin Gothic Medium', 'Arial Narrow',
         system-ui, sans-serif;
-      font-size: clamp(0.94rem, 2.4vw, 1.2rem);
-      font-weight: 600;
+      font-size: clamp(2.82rem, 7.2vw, 3.6rem);
+      font-weight: 700;
       letter-spacing: 0.02em;
       line-height: 1.4;
       color: rgba(255, 255, 255, 0.94);
