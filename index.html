@@ -342,6 +342,8 @@
     const textureCanvasCache = new WeakMap();
     let handleClickGesture = null;
     let chalkTapGesture = null;
+    /** Draw mode: primary down on empty background; tap (no drag) exits to orbit. */
+    let bgExitGesture = null;
 
     /** @type {'orbit'|'draw'} */
     let viewMode = 'orbit';
@@ -792,6 +794,7 @@
       };
 
       chalkFace = face;
+      bgExitGesture = null;
       initUndoStackForFace(face);
       viewMode = 'draw';
       chalkUi.classList.add('is-visible');
@@ -818,6 +821,7 @@
       isDrawing = false;
       drawPointerId = null;
       lastDrawUv = null;
+      bgExitGesture = null;
       controls.enablePan = true;
 
       if (viewMode !== 'draw' || !preChalkCamera) {
@@ -1061,6 +1065,7 @@
       if (viewMode === 'draw') {
         const hit = getActiveChalkHit(e.clientX, e.clientY);
         if (hit && hit.uv && chalkFace) {
+          bgExitGesture = null;
           isDrawing = true;
           drawPointerId = e.pointerId;
           controls.enablePan = false;
@@ -1077,9 +1082,16 @@
             renderer.domElement.setPointerCapture(e.pointerId);
           } catch (_) {}
           e.stopImmediatePropagation();
-        } else if (!raycastChalkMeshes(e.clientX, e.clientY).length) {
-          exitChalkDraw();
-          e.stopImmediatePropagation();
+        } else {
+          const any = raycastChalkMeshes(e.clientX, e.clientY);
+          if (!any.length) {
+            bgExitGesture = {
+              pointerId: e.pointerId,
+              x0: e.clientX,
+              y0: e.clientY,
+              t0: performance.now(),
+            };
+          }
         }
         return;
       }
@@ -1133,6 +1145,10 @@
         const d = Math.hypot(e.clientX - chalkTapGesture.x0, e.clientY - chalkTapGesture.y0);
         if (d > CHALK_TAP_MAX_MOVE) chalkTapGesture = null;
       }
+      if (bgExitGesture && e.pointerId === bgExitGesture.pointerId) {
+        const d = Math.hypot(e.clientX - bgExitGesture.x0, e.clientY - bgExitGesture.y0);
+        if (d > CHALK_TAP_MAX_MOVE) bgExitGesture = null;
+      }
     });
 
     renderer.domElement.addEventListener('pointerup', (e) => {
@@ -1152,6 +1168,17 @@
         try {
           renderer.domElement.releasePointerCapture(e.pointerId);
         } catch (_) {}
+        return;
+      }
+
+      if (viewMode === 'draw' && bgExitGesture && e.pointerId === bgExitGesture.pointerId) {
+        const g = bgExitGesture;
+        bgExitGesture = null;
+        const d = Math.hypot(e.clientX - g.x0, e.clientY - g.y0);
+        const dt = performance.now() - g.t0;
+        if (d <= CHALK_TAP_MAX_MOVE && dt <= CHALK_TAP_MAX_MS) {
+          exitChalkDraw();
+        }
         return;
       }
 
@@ -1178,6 +1205,7 @@
     renderer.domElement.addEventListener('pointercancel', () => {
       handleClickGesture = null;
       chalkTapGesture = null;
+      bgExitGesture = null;
       isDrawing = false;
       drawPointerId = null;
       lastDrawUv = null;
@@ -1186,6 +1214,7 @@
     window.addEventListener('blur', () => {
       handleClickGesture = null;
       chalkTapGesture = null;
+      bgExitGesture = null;
       if (isDrawing) {
         isDrawing = false;
         drawPointerId = null;
