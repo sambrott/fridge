@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minsk Fridge</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: #b91c1c;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    #canvas-wrap {
+      position: fixed;
+      inset: 0;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+    #hud {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      padding: 16px 20px max(16px, env(safe-area-inset-bottom));
+      pointer-events: none;
+    }
+    #hud button {
+      pointer-events: auto;
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(28, 28, 28, 0.92);
+      color: #eee;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+    }
+    #hud button:hover {
+      background: rgba(48, 48, 48, 0.95);
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+    #chalk-ui {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      z-index: 11;
+      display: none;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px max(12px, env(safe-area-inset-top));
+      background: linear-gradient(180deg, rgba(0,0,0,0.78), rgba(0,0,0,0.35));
+      pointer-events: none;
+    }
+    #chalk-ui.is-visible {
+      display: flex;
+    }
+    #chalk-ui button,
+    #chalk-ui .chalk-swatch {
+      pointer-events: auto;
+    }
+    #chalk-back {
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      background: rgba(36, 36, 36, 0.95);
+      color: #eee;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #chalk-back:hover {
+      background: rgba(56, 56, 56, 0.98);
+    }
+    .chalk-markers {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .chalk-markers > * {
+      pointer-events: auto;
+    }
+    #chalk-colors {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .chalk-swatch {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      cursor: pointer;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35);
+    }
+    .chalk-swatch[aria-pressed="true"] {
+      border-color: #fff;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.35), inset 0 0 0 1px rgba(0,0,0,0.35);
+    }
+    #chalk-stroke {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      background: rgba(28, 28, 28, 0.95);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    #chalk-stroke:hover {
+      background: rgba(48, 48, 48, 0.98);
+    }
+    #chalk-stroke svg {
+      display: block;
+    }
+    #chalk-eraser,
+    #chalk-undo {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      background: rgba(36, 36, 36, 0.95);
+      color: #eee;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #chalk-eraser svg,
+    #chalk-undo svg {
+      display: block;
+      width: 22px;
+      height: 22px;
+    }
+    #chalk-eraser:hover,
+    #chalk-undo:hover {
+      background: rgba(56, 56, 56, 0.98);
+    }
+    #chalk-eraser[aria-pressed="true"] {
+      border-color: #fca5a5;
+      background: rgba(80, 30, 30, 0.95);
+    }
+    #attr {
+      position: fixed;
+      bottom: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.32);
+      text-align: center;
+      max-width: 92vw;
+      pointer-events: none;
+      line-height: 1.35;
+    }
+    #attr a {
+      pointer-events: auto;
+      color: rgba(200, 210, 255, 0.55);
+      text-decoration: none;
+    }
+    #attr a:hover {
+      text-decoration: underline;
+    }
+    #err {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      color: #f66;
+      padding: 24px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    #err.is-visible { display: flex; }
+  </style>
+</head>
+<body>
+  <div id="canvas-wrap"></div>
+  <div id="chalk-ui" aria-label="Chalk drawing tools">
+    <button type="button" id="chalk-back">Back</button>
+    <button type="button" id="chalk-eraser" aria-pressed="false" title="Eraser" aria-label="Eraser">
+      <!-- Heroicons v2 outline “eraser” (MIT) -->
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
+        <path stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+      </svg>
+    </button>
+    <button type="button" id="chalk-undo" title="Undo last stroke" aria-label="Undo last stroke">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+      </svg>
+    </button>
+    <div class="chalk-markers">
+      <div id="chalk-colors"></div>
+      <button type="button" id="chalk-stroke" title="Stroke size" aria-label="Cycle stroke size"></button>
+    </div>
+  </div>
+  <p id="attr">
+    Model “Mińsk Fridge” by Michalina Gąsienica-Laskowy ·
+    <a href="https://sketchfab.com/3d-models/minsk-fridge-55325e3b09ac48b2ae3803bccf804741" rel="noopener noreferrer" target="_blank">Sketchfab</a>
+    · CC&nbsp;BY‑NC‑SA&nbsp;4.0
+  </p>
+  <div id="hud">
+    <button type="button" id="door-btn" aria-pressed="false">Open door</button>
+  </div>
+  <div id="err" role="alert"></div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const POS_SCALE = 0.01;
+    const DOOR_SPEED = 3.2;
+    const HANDLE_MAX_LUMINANCE = 0.42;
+    const HANDLE_CLICK_MAX_MOVE = 14;
+    const CHALK_TAP_MAX_MOVE = 16;
+    const CHALK_TAP_MAX_MS = 700;
+
+    const CHALK_CANVAS_SIZE = 1024;
+    const UNDO_MAX = 28;
+    const STORAGE_KEYS = {
+      door: 'minskChalk_v2_door',
+      left: 'minskChalk_v2_left',
+      right: 'minskChalk_v2_right',
+      top: 'minskChalk_v2_top',
+      back: 'minskChalk_v2_back',
+    };
+
+    const CHALK_COLORS = [
+      { id: 'red', hex: '#e53935' },
+      { id: 'blue', hex: '#1e88e5' },
+      { id: 'green', hex: '#43a047' },
+      { id: 'yellow', hex: '#fdd835' },
+      { id: 'white', hex: '#f5f5f5' },
+    ];
+
+    /** Radii in canvas pixels (wet marker footprint). */
+    const STROKE_RADIUS_PX = [1.5, 2.5, 4, 6.5];
+
+    const DOOR_POSE_CLOSED = Object.freeze({
+      rx: -90,
+      ry: 0,
+      rz: 0,
+      px: 0,
+      py: 0,
+      pz: 0,
+    });
+
+    const wrap = document.getElementById('canvas-wrap');
+    const doorBtn = document.getElementById('door-btn');
+    const errEl = document.getElementById('err');
+    const chalkUi = document.getElementById('chalk-ui');
+    const chalkBack = document.getElementById('chalk-back');
+    const chalkColorsEl = document.getElementById('chalk-colors');
+    const chalkStrokeBtn = document.getElementById('chalk-stroke');
+    const chalkEraserBtn = document.getElementById('chalk-eraser');
+    const chalkUndoBtn = document.getElementById('chalk-undo');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xb91c1c);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 200);
+    camera.position.set(1.2, 0.85, 1.6);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1;
+    wrap.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 0.35;
+    controls.maxDistance = 8;
+    controls.target.set(0, 0.45, 0);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+    const key = new THREE.DirectionalLight(0xffffff, 1.15);
+    key.position.set(2.5, 4, 2);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xaaccff, 0.35);
+    fill.position.set(-2, 1.5, -1.5);
+    scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.25);
+    rim.position.set(-1, 2, -3);
+    scene.add(rim);
+
+    const loader = new GLTFLoader();
+    const clock = new THREE.Clock();
+    const raycaster = new THREE.Raycaster();
+    const pointerNdc = new THREE.Vector2();
+    const tmpVec3a = new THREE.Vector3();
+    const tmpVec3b = new THREE.Vector3();
+    const tmpVec3c = new THREE.Vector3();
+
+    let doorPivot = null;
+    let doorPanelMesh = null;
+    let fridgePanelMesh = null;
+    let modelRoot = null;
+    let modelFitScale = 1;
+    let modelCenter = new THREE.Vector3();
+
+    const doorOrigPos = new THREE.Vector3();
+    let doorOpen = false;
+    let doorT = 0;
+
+    const textureCanvasCache = new WeakMap();
+    let handleClickGesture = null;
+    let chalkTapGesture = null;
+
+    /** @type {'orbit'|'draw'} */
+    let viewMode = 'orbit';
+    /** @type {'door'|'left'|'right'|'top'|'back'|null} */
+    let chalkFace = null;
+    /** @type {'draw'|'erase'} */
+    let chalkTool = 'draw';
+    /** @type {Record<string, string[]>} */
+    const undoStacks = {};
+    let preChalkCamera = null;
+
+    let chalkColorIdx = 0;
+    let strokeIdx = 1;
+
+    let camAnim = null;
+
+    let isDrawing = false;
+    let drawPointerId = null;
+    /** @type {{ u: number; v: number } | null} */
+    let lastDrawUv = null;
+
+    let chalkTexDoor = null;
+    let chalkTexLeft = null;
+    let chalkTexRight = null;
+    let chalkTexTop = null;
+    let chalkTexBack = null;
+    let chalkCanvasDoor = null;
+    let chalkCanvasLeft = null;
+    let chalkCanvasRight = null;
+    let chalkCanvasTop = null;
+    let chalkCanvasBack = null;
+
+    /** @type {{ value: THREE.Vector3 } | null} */
+    let uFridgeShellCenter = null;
+    /** Outward world direction for the fridge back (XZ); opposite horizontal “door” side. */
+    /** @type {{ value: THREE.Vector3 } | null} */
+    let uFridgeBackOut = null;
+
+    function clonePose(p) {
+      return { rx: p.rx, ry: p.ry, rz: p.rz, px: p.px, py: p.py, pz: p.pz };
+    }
+
+    let closedSnap = clonePose(DOOR_POSE_CLOSED);
+    let openSnap = { rx: 0, ry: 0, rz: 0, px: 0, py: 0, pz: 0 };
+
+    function showErr(msg) {
+      errEl.textContent = msg;
+      errEl.classList.add('is-visible');
+    }
+
+    function poseFromDoor() {
+      if (!doorPivot) return clonePose(closedSnap);
+      const r = doorPivot.rotation;
+      return {
+        rx: THREE.MathUtils.radToDeg(r.x),
+        ry: THREE.MathUtils.radToDeg(r.y),
+        rz: THREE.MathUtils.radToDeg(r.z),
+        px: (doorPivot.position.x - doorOrigPos.x) / POS_SCALE,
+        py: (doorPivot.position.y - doorOrigPos.y) / POS_SCALE,
+        pz: (doorPivot.position.z - doorOrigPos.z) / POS_SCALE,
+      };
+    }
+
+    function applyPoseToDoor(pose) {
+      if (!doorPivot) return;
+      doorPivot.rotation.set(
+        THREE.MathUtils.degToRad(pose.rx),
+        THREE.MathUtils.degToRad(pose.ry),
+        THREE.MathUtils.degToRad(pose.rz),
+        'XYZ'
+      );
+      doorPivot.position.set(
+        doorOrigPos.x + pose.px * POS_SCALE,
+        doorOrigPos.y + pose.py * POS_SCALE,
+        doorOrigPos.z + pose.pz * POS_SCALE
+      );
+    }
+
+    function lerpPose(a, b, t) {
+      t = THREE.MathUtils.clamp(t, 0, 1);
+      return {
+        rx: THREE.MathUtils.lerp(a.rx, b.rx, t),
+        ry: THREE.MathUtils.lerp(a.ry, b.ry, t),
+        rz: THREE.MathUtils.lerp(a.rz, b.rz, t),
+        px: THREE.MathUtils.lerp(a.px, b.px, t),
+        py: THREE.MathUtils.lerp(a.py, b.py, t),
+        pz: THREE.MathUtils.lerp(a.pz, b.pz, t),
+      };
+    }
+
+    function setPointerNdc(clientX, clientY) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointerNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    }
+
+    function doorMaterial() {
+      if (!doorPanelMesh) return null;
+      const m = doorPanelMesh.material;
+      return Array.isArray(m) ? m[0] : m;
+    }
+
+    function luminanceAtUv(texture, u, v) {
+      if (!texture || !texture.image) return 1;
+      const img = texture.image;
+      const w = img.width;
+      const h = img.height;
+      if (!w || !h) return 1;
+      let canv = textureCanvasCache.get(texture);
+      if (!canv) {
+        canv = document.createElement('canvas');
+        canv.width = w;
+        canv.height = h;
+        const c2d = canv.getContext('2d');
+        c2d.drawImage(img, 0, 0);
+        textureCanvasCache.set(texture, canv);
+      }
+      const c2d = canv.getContext('2d');
+      const x = Math.floor(THREE.MathUtils.clamp(u, 0, 1) * (canv.width - 1));
+      const y = Math.floor(THREE.MathUtils.clamp(1 - v, 0, 1) * (canv.height - 1));
+      const d = c2d.getImageData(x, y, 1, 1).data;
+      return (0.2126 * d[0] + 0.7152 * d[1] + 0.0722 * d[2]) / 255;
+    }
+
+    function raycastDoorPanel(clientX, clientY) {
+      if (!doorPanelMesh) return null;
+      setPointerNdc(clientX, clientY);
+      raycaster.setFromCamera(pointerNdc, camera);
+      const hits = raycaster.intersectObject(doorPanelMesh, false);
+      return hits.length ? hits[0] : null;
+    }
+
+    function isHandleHit(hit) {
+      if (!hit || !hit.uv) return false;
+      const mat = doorMaterial();
+      const map = mat && mat.map;
+      if (!map) return false;
+      const lum = luminanceAtUv(map, hit.uv.x, hit.uv.y);
+      return lum <= HANDLE_MAX_LUMINANCE;
+    }
+
+    function pickHandle(clientX, clientY) {
+      const hit = raycastDoorPanel(clientX, clientY);
+      return hit && isHandleHit(hit);
+    }
+
+    function syncDoorButtonLabel() {
+      doorBtn.textContent = doorOpen ? 'Close door' : 'Open door';
+      doorBtn.setAttribute('aria-pressed', String(doorOpen));
+    }
+
+    function raycastChalkMeshes(clientX, clientY) {
+      const objs = [];
+      if (doorPanelMesh) objs.push(doorPanelMesh);
+      if (fridgePanelMesh) objs.push(fridgePanelMesh);
+      if (!objs.length) return [];
+      setPointerNdc(clientX, clientY);
+      raycaster.setFromCamera(pointerNdc, camera);
+      return raycaster.intersectObjects(objs, false);
+    }
+
+    /** World unit vector from fridge body toward door (outside); updates each frame in tick(). */
+    function doorOutsideWorldDir(out) {
+      if (!doorPanelMesh || !fridgePanelMesh) {
+        out.set(0, 0, 1);
+        return;
+      }
+      const db = new THREE.Box3().setFromObject(doorPanelMesh);
+      const bb = new THREE.Box3().setFromObject(fridgePanelMesh);
+      db.getCenter(tmpVec3a);
+      bb.getCenter(tmpVec3b);
+      out.copy(tmpVec3a).sub(tmpVec3b).normalize();
+      if (out.lengthSq() < 1e-8) out.set(0, 0, 1);
+    }
+
+    /**
+     * Drawable chalk panel: outer shell only (not cavity). Door: outside face only.
+     */
+    function classifyChalkSurface(hit) {
+      if (!hit || !hit.normal) return null;
+      const n = hit.normal;
+      tmpVec3c.copy(camera.position).sub(hit.point).normalize();
+      if (n.dot(tmpVec3c) < 0.14) return null;
+
+      if (hit.object === doorPanelMesh) {
+        if (Math.abs(n.y) > 0.86) return null;
+        if (uFridgeShellCenter) {
+          tmpVec3b.copy(hit.point).sub(uFridgeShellCenter.value).normalize();
+          if (n.dot(tmpVec3b) < -0.03) return null;
+        }
+        return 'door';
+      }
+      if (hit.object === fridgePanelMesh) {
+        if (uFridgeShellCenter) {
+          tmpVec3b.copy(hit.point).sub(uFridgeShellCenter.value).normalize();
+          if (n.dot(tmpVec3b) < -0.03) return null;
+        }
+        const nx = n.x;
+        const ny = n.y;
+        const nz = n.z;
+        const ax = Math.abs(nx);
+        const ay = Math.abs(ny);
+        const az = Math.abs(nz);
+        const m = Math.max(ax, Math.max(ay, az));
+        const towardBack = uFridgeBackOut ? n.dot(uFridgeBackOut.value) : nz;
+        const isTop = ay >= m - 0.03 && ny > 0.22;
+        const isBack = !isTop && az >= m - 0.03 && towardBack > 0.05 && ax < 0.9;
+        const isLeft = !isTop && !isBack && ax >= m - 0.03 && nx < -0.12;
+        const isRight = !isTop && !isBack && ax >= m - 0.03 && nx > 0.12;
+        if (isTop) return 'top';
+        if (isBack) return 'back';
+        if (isLeft) return 'left';
+        if (isRight) return 'right';
+        return null;
+      }
+      return null;
+    }
+
+    function createChalkLayer() {
+      const canvas = document.createElement('canvas');
+      canvas.width = CHALK_CANVAS_SIZE;
+      canvas.height = CHALK_CANVAS_SIZE;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = THREE.ClampToEdgeWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.generateMipmaps = false;
+      tex.needsUpdate = true;
+      return { canvas, ctx, tex };
+    }
+
+    function getChalkLayer(face) {
+      if (face === 'door') return { canvas: chalkCanvasDoor, tex: chalkTexDoor };
+      if (face === 'left') return { canvas: chalkCanvasLeft, tex: chalkTexLeft };
+      if (face === 'right') return { canvas: chalkCanvasRight, tex: chalkTexRight };
+      if (face === 'top') return { canvas: chalkCanvasTop, tex: chalkTexTop };
+      if (face === 'back') return { canvas: chalkCanvasBack, tex: chalkTexBack };
+      return { canvas: null, tex: null };
+    }
+
+    function chalkSnapshotDataUrl(face) {
+      const { canvas } = getChalkLayer(face);
+      return canvas ? canvas.toDataURL('image/png') : '';
+    }
+
+    function restoreChalkDataUrl(face, dataUrl) {
+      const { canvas, tex } = getChalkLayer(face);
+      if (!canvas || !tex || !dataUrl) return;
+      const img = new Image();
+      img.onload = () => {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        tex.needsUpdate = true;
+      };
+      img.src = dataUrl;
+    }
+
+    function persistChalk(face) {
+      const key = STORAGE_KEYS[face];
+      if (!key) return;
+      const { canvas } = getChalkLayer(face);
+      if (!canvas) return;
+      try {
+        localStorage.setItem(key, canvas.toDataURL('image/png'));
+      } catch (_) {
+        /* quota or private mode */
+      }
+    }
+
+    function restoreChalkFromStorage(face) {
+      const key = STORAGE_KEYS[face];
+      const { canvas, tex } = getChalkLayer(face);
+      if (!canvas || !tex) return;
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const img = new Image();
+      img.onload = () => {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        tex.needsUpdate = true;
+      };
+      img.src = raw;
+    }
+
+    function initUndoStackForFace(face) {
+      undoStacks[face] = [chalkSnapshotDataUrl(face)];
+      while (undoStacks[face].length > UNDO_MAX) undoStacks[face].shift();
+    }
+
+    function undoLastStroke() {
+      if (!chalkFace) return;
+      const st = undoStacks[chalkFace];
+      if (!st || st.length <= 1) return;
+      st.pop();
+      const prev = st[st.length - 1];
+      restoreChalkDataUrl(chalkFace, prev);
+      persistChalk(chalkFace);
+    }
+
+    function hexToRgb(hex) {
+      const h = hex.replace('#', '');
+      const n = parseInt(h, 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+
+    function stampBrush(ctx, u, v, radiusPx, hex) {
+      const w = ctx.canvas.width;
+      const h = ctx.canvas.height;
+      const x = THREE.MathUtils.clamp(u, 0, 1) * w;
+      const y = (1 - THREE.MathUtils.clamp(v, 0, 1)) * h;
+      const { r, g, b } = hexToRgb(hex);
+      const grd = ctx.createRadialGradient(x, y, 0, x, y, radiusPx);
+      grd.addColorStop(0, `rgba(${r},${g},${b},0.88)`);
+      grd.addColorStop(0.45, `rgba(${r},${g},${b},0.42)`);
+      grd.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      const prev = ctx.globalCompositeOperation;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(x, y, radiusPx, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = prev;
+    }
+
+    function stampEraser(ctx, u, v, radiusPx) {
+      const w = ctx.canvas.width;
+      const h = ctx.canvas.height;
+      const x = THREE.MathUtils.clamp(u, 0, 1) * w;
+      const y = (1 - THREE.MathUtils.clamp(v, 0, 1)) * h;
+      const grd = ctx.createRadialGradient(x, y, 0, x, y, radiusPx);
+      grd.addColorStop(0, 'rgba(0,0,0,1)');
+      grd.addColorStop(0.55, 'rgba(0,0,0,0.45)');
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      const prev = ctx.globalCompositeOperation;
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(x, y, radiusPx, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = prev;
+    }
+
+    function drawStrokeSegment(face, u0, v0, u1, v1, radiusPx, hex, erase) {
+      const { canvas, tex } = getChalkLayer(face);
+      if (!canvas || !tex) return;
+      const ctx = canvas.getContext('2d');
+
+      const dx = (u1 - u0) * ctx.canvas.width;
+      const dy = (v1 - v0) * ctx.canvas.height;
+      const dist = Math.hypot(dx, dy);
+      const stepPx = Math.max(0.35, radiusPx * 0.35);
+      const steps = Math.max(1, Math.ceil(dist / stepPx));
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const u = u0 + (u1 - u0) * t;
+        const v = v0 + (v1 - v0) * t;
+        if (erase) stampEraser(ctx, u, v, radiusPx * 1.15);
+        else stampBrush(ctx, u, v, radiusPx, hex);
+      }
+      tex.needsUpdate = true;
+    }
+
+    /**
+     * While drawing: only raycast the active mesh (door vs fridge). Do not re-run
+     * classifyChalkSurface — it rejects many valid triangles when zoomed or on bevels.
+     */
+    function getActiveChalkHit(clientX, clientY) {
+      if (!chalkFace) return null;
+      const mesh = chalkFace === 'door' ? doorPanelMesh : fridgePanelMesh;
+      if (!mesh) return null;
+      setPointerNdc(clientX, clientY);
+      raycaster.setFromCamera(pointerNdc, camera);
+      const hits = raycaster.intersectObject(mesh, false);
+      if (!hits.length) return null;
+      const h = hits[0];
+      if (!h.uv) return null;
+      if (h.normal) {
+        tmpVec3c.copy(camera.position).sub(h.point).normalize();
+        if (h.normal.dot(tmpVec3c) < -0.15) return null;
+      }
+      return h;
+    }
+
+    function startCameraAnim(toPos, toTarget, duration = 0.62) {
+      camAnim = {
+        t0: performance.now(),
+        duration,
+        fromPos: camera.position.clone(),
+        toPos: toPos.clone(),
+        fromTgt: controls.target.clone(),
+        toTgt: toTarget.clone(),
+      };
+    }
+
+    function enterChalkDraw(hit, face) {
+      if (!hit || !face) return;
+      preChalkCamera = {
+        pos: camera.position.clone(),
+        target: controls.target.clone(),
+        minD: controls.minDistance,
+        maxD: controls.maxDistance,
+      };
+
+      chalkFace = face;
+      initUndoStackForFace(face);
+      viewMode = 'draw';
+      chalkUi.classList.add('is-visible');
+      doorBtn.style.pointerEvents = 'none';
+      doorBtn.style.opacity = '0.35';
+
+      controls.enableRotate = false;
+      controls.enablePan = true;
+      controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+      controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+      controls.touches.ONE = THREE.TOUCH.PAN;
+      controls.minDistance = 0.08;
+      controls.maxDistance = 4;
+
+      const n = hit.normal.clone().normalize();
+      const dist = THREE.MathUtils.clamp(modelFitScale * 0.42, 0.18, 0.52);
+      const toTarget = hit.point.clone();
+      const toPos = hit.point.clone().add(n.multiplyScalar(dist));
+
+      startCameraAnim(toPos, toTarget, 0.58);
+    }
+
+    function exitChalkDraw() {
+      isDrawing = false;
+      drawPointerId = null;
+      lastDrawUv = null;
+      controls.enablePan = true;
+
+      if (viewMode !== 'draw' || !preChalkCamera) {
+        viewMode = 'orbit';
+        chalkFace = null;
+        chalkTool = 'draw';
+        chalkEraserBtn.setAttribute('aria-pressed', 'false');
+        chalkUi.classList.remove('is-visible');
+        doorBtn.style.pointerEvents = '';
+        doorBtn.style.opacity = '';
+        controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+        controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+        controls.touches.ONE = THREE.TOUCH.ROTATE;
+        controls.enableRotate = true;
+        return;
+      }
+
+      if (chalkFace) persistChalk(chalkFace);
+
+      const bak = preChalkCamera;
+      preChalkCamera = null;
+      chalkFace = null;
+      viewMode = 'orbit';
+      chalkTool = 'draw';
+      chalkEraserBtn.setAttribute('aria-pressed', 'false');
+
+      chalkUi.classList.remove('is-visible');
+      doorBtn.style.pointerEvents = '';
+      doorBtn.style.opacity = '';
+
+      controls.minDistance = bak.minD;
+      controls.maxDistance = bak.maxD;
+      controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+      controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+      controls.touches.ONE = THREE.TOUCH.ROTATE;
+      controls.enableRotate = true;
+
+      startCameraAnim(bak.pos, bak.target, 0.55);
+    }
+
+    function patchFridgeMaterial(mat) {
+      if (!mat || !mat.isMeshStandardMaterial) return;
+      const uL = { value: chalkTexLeft };
+      const uR = { value: chalkTexRight };
+      const uT = { value: chalkTexTop };
+      const uB = { value: chalkTexBack };
+      uFridgeShellCenter = { value: new THREE.Vector3(0, 0, 0) };
+      const uC = uFridgeShellCenter;
+      uFridgeBackOut = { value: new THREE.Vector3(0, 0, -1) };
+      const uBack = uFridgeBackOut;
+      mat.userData.chalkUniforms = { uChalkLeft: uL, uChalkRight: uR, uChalkTop: uT, uChalkBack: uB, uFridgeShellCenter: uC, uFridgeBackOut: uBack };
+      mat.userData.uFridgeShellCenterRef = uC;
+
+      mat.onBeforeCompile = (shader) => {
+        shader.uniforms.uChalkLeft = uL;
+        shader.uniforms.uChalkRight = uR;
+        shader.uniforms.uChalkTop = uT;
+        shader.uniforms.uChalkBack = uB;
+        shader.uniforms.uFridgeShellCenter = uC;
+        shader.uniforms.uFridgeBackOut = uBack;
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <common>',
+          '#include <common>\nvarying vec3 vWorldNormal;\nvarying vec3 vWorldPos;\n'
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <worldpos_vertex>',
+          '#include <worldpos_vertex>\nvWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\nvWorldPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\n'
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <common>',
+          '#include <common>\nvarying vec3 vWorldNormal;\nvarying vec3 vWorldPos;\nuniform sampler2D uChalkLeft;\nuniform sampler2D uChalkRight;\nuniform sampler2D uChalkTop;\nuniform sampler2D uChalkBack;\nuniform vec3 uFridgeShellCenter;\nuniform vec3 uFridgeBackOut;\n'
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <color_fragment>',
+          `#include <color_fragment>
+          {
+            vec3 nn = normalize( vWorldNormal );
+            vec3 radial = normalize( vWorldPos - uFridgeShellCenter );
+            float exterior = dot( nn, radial );
+            if ( exterior > 0.008 ) {
+              float ax = abs( nn.x );
+              float ay = abs( nn.y );
+              float az = abs( nn.z );
+              float m = max( ax, max( ay, az ) );
+              vec3 backDir = normalize( uFridgeBackOut );
+              float towardBack = dot( nn, backDir );
+              vec4 chalkS = vec4( 0.0 );
+              float useChalk = 0.0;
+              bool isTop = ( ay >= m - 0.03 ) && nn.y > 0.22;
+              bool isBack = !isTop && ( az >= m - 0.03 ) && towardBack > 0.05 && ax < 0.9;
+              bool isLeft = !isTop && !isBack && ( ax >= m - 0.03 ) && nn.x < -0.12;
+              bool isRight = !isTop && !isBack && ( ax >= m - 0.03 ) && nn.x > 0.12;
+              if ( isTop ) {
+                useChalk = 1.0;
+                chalkS = texture( uChalkTop, vMapUv );
+              } else if ( isBack ) {
+                useChalk = 1.0;
+                chalkS = texture( uChalkBack, vMapUv );
+              } else if ( isLeft ) {
+                useChalk = 1.0;
+                chalkS = texture( uChalkLeft, vMapUv );
+              } else if ( isRight ) {
+                useChalk = 1.0;
+                chalkS = texture( uChalkRight, vMapUv );
+              }
+              if ( useChalk > 0.5 ) {
+                diffuseColor.rgb = mix( vec3( 0.035 ), chalkS.rgb, chalkS.a );
+              }
+            }
+          }
+          `
+        );
+      };
+      mat.needsUpdate = true;
+    }
+
+    function patchDoorMaterial(mat) {
+      if (!mat || !mat.isMeshStandardMaterial) return;
+      const uD = { value: chalkTexDoor };
+      if (!uFridgeShellCenter) uFridgeShellCenter = { value: new THREE.Vector3(0, 0, 0) };
+      const uC = uFridgeShellCenter;
+      mat.userData.chalkUniforms = { uChalkDoor: uD, uFridgeShellCenter: uC };
+
+      mat.onBeforeCompile = (shader) => {
+        shader.uniforms.uChalkDoor = uD;
+        shader.uniforms.uFridgeShellCenter = uC;
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <common>',
+          '#include <common>\nvarying vec3 vWorldNormal;\nvarying vec3 vWorldPos;\n'
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <worldpos_vertex>',
+          '#include <worldpos_vertex>\nvWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\nvWorldPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\n'
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <common>',
+          '#include <common>\nvarying vec3 vWorldNormal;\nvarying vec3 vWorldPos;\nuniform sampler2D uChalkDoor;\nuniform vec3 uFridgeShellCenter;\n'
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <color_fragment>',
+          `#include <color_fragment>
+          {
+            vec3 nn = normalize( vWorldNormal );
+            vec3 radial = normalize( vWorldPos - uFridgeShellCenter );
+            float facing = dot( nn, radial );
+            float outerAmt = smoothstep( -0.03, 0.06, facing );
+            if ( outerAmt > 0.001 ) {
+              vec3 baseCol = diffuseColor.rgb;
+              vec4 chalkS = texture( uChalkDoor, vMapUv );
+              vec3 boardCol = mix( vec3( 0.035 ), chalkS.rgb, chalkS.a );
+              diffuseColor.rgb = mix( baseCol, boardCol, outerAmt );
+            }
+          }
+          `
+        );
+      };
+      mat.needsUpdate = true;
+    }
+
+    function buildChalkColorUi() {
+      chalkColorsEl.innerHTML = '';
+      CHALK_COLORS.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chalk-swatch';
+        b.style.background = c.hex;
+        b.title = c.id;
+        b.setAttribute('aria-pressed', String(i === chalkColorIdx));
+        b.addEventListener('click', () => {
+          chalkTool = 'draw';
+          chalkEraserBtn.setAttribute('aria-pressed', 'false');
+          chalkColorIdx = i;
+          chalkColorsEl.querySelectorAll('.chalk-swatch').forEach((el, j) => {
+            el.setAttribute('aria-pressed', String(j === chalkColorIdx));
+          });
+        });
+        chalkColorsEl.appendChild(b);
+      });
+    }
+
+    function renderStrokeIcon() {
+      const r = STROKE_RADIUS_PX[strokeIdx];
+      const view = 40;
+      const rMax = STROKE_RADIUS_PX[STROKE_RADIUS_PX.length - 1];
+      const scale = (view * 0.36) / rMax;
+      const cr = Math.max(1.5, Math.min(view * 0.42, r * scale));
+      chalkStrokeBtn.innerHTML = `
+        <svg width="${view}" height="${view}" viewBox="0 0 ${view} ${view}" aria-hidden="true">
+          <circle cx="${view / 2}" cy="${view / 2}" r="${cr}" fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="1.75"/>
+          <circle cx="${view / 2}" cy="${view / 2}" r="1.25" fill="rgba(255,255,255,0.35)"/>
+        </svg>`;
+      chalkStrokeBtn.title = `Stroke (~${r.toFixed(1)} px)`;
+    }
+
+    chalkStrokeBtn.addEventListener('click', () => {
+      strokeIdx = (strokeIdx + 1) % STROKE_RADIUS_PX.length;
+      renderStrokeIcon();
+    });
+
+    chalkEraserBtn.addEventListener('click', () => {
+      chalkTool = chalkTool === 'erase' ? 'draw' : 'erase';
+      chalkEraserBtn.setAttribute('aria-pressed', String(chalkTool === 'erase'));
+    });
+
+    chalkUndoBtn.addEventListener('click', () => undoLastStroke());
+
+    chalkBack.addEventListener('click', () => exitChalkDraw());
+
+    buildChalkColorUi();
+    renderStrokeIcon();
+
+    const layerDoor = createChalkLayer();
+    chalkCanvasDoor = layerDoor.canvas;
+    chalkTexDoor = layerDoor.tex;
+    const layerL = createChalkLayer();
+    chalkCanvasLeft = layerL.canvas;
+    chalkTexLeft = layerL.tex;
+    const layerR = createChalkLayer();
+    chalkCanvasRight = layerR.canvas;
+    chalkTexRight = layerR.tex;
+    const layerT = createChalkLayer();
+    chalkCanvasTop = layerT.canvas;
+    chalkTexTop = layerT.tex;
+    const layerBk = createChalkLayer();
+    chalkCanvasBack = layerBk.canvas;
+    chalkTexBack = layerBk.tex;
+
+    function onPointerDown(e) {
+      if (e.button !== 0) return;
+
+      if (viewMode === 'draw') {
+        const hit = getActiveChalkHit(e.clientX, e.clientY);
+        if (hit && hit.uv && chalkFace) {
+          isDrawing = true;
+          drawPointerId = e.pointerId;
+          controls.enablePan = false;
+          lastDrawUv = { u: hit.uv.x, v: hit.uv.y };
+          const { canvas, tex } = getChalkLayer(chalkFace);
+          if (canvas && tex) {
+            const ctx = canvas.getContext('2d');
+            const rad = STROKE_RADIUS_PX[strokeIdx];
+            if (chalkTool === 'erase') stampEraser(ctx, hit.uv.x, hit.uv.y, rad * 1.15);
+            else stampBrush(ctx, hit.uv.x, hit.uv.y, rad, CHALK_COLORS[chalkColorIdx].hex);
+            tex.needsUpdate = true;
+          }
+          try {
+            renderer.domElement.setPointerCapture(e.pointerId);
+          } catch (_) {}
+          e.stopImmediatePropagation();
+        }
+        return;
+      }
+
+      if (!doorPanelMesh) return;
+
+      if (pickHandle(e.clientX, e.clientY)) {
+        handleClickGesture = {
+          pointerId: e.pointerId,
+          x0: e.clientX,
+          y0: e.clientY,
+          t0: performance.now(),
+        };
+        return;
+      }
+
+      const hits = raycastChalkMeshes(e.clientX, e.clientY);
+      const face = hits.length ? classifyChalkSurface(hits[0]) : null;
+      if (face) {
+        chalkTapGesture = {
+          pointerId: e.pointerId,
+          x0: e.clientX,
+          y0: e.clientY,
+          t0: performance.now(),
+          hit: hits[0],
+          face,
+        };
+      }
+    }
+
+    renderer.domElement.addEventListener('pointerdown', onPointerDown, true);
+
+    renderer.domElement.addEventListener('pointermove', (e) => {
+      if (viewMode === 'draw' && isDrawing && e.pointerId === drawPointerId) {
+        const hit = getActiveChalkHit(e.clientX, e.clientY);
+        if (hit && hit.uv && lastDrawUv && chalkFace) {
+          const hex = CHALK_COLORS[chalkColorIdx].hex;
+          const rad = STROKE_RADIUS_PX[strokeIdx];
+          const erase = chalkTool === 'erase';
+          drawStrokeSegment(chalkFace, lastDrawUv.u, lastDrawUv.v, hit.uv.x, hit.uv.y, rad, hex, erase);
+          lastDrawUv = { u: hit.uv.x, v: hit.uv.y };
+        }
+        return;
+      }
+
+      if (handleClickGesture && e.pointerId === handleClickGesture.pointerId) {
+        const d = Math.hypot(e.clientX - handleClickGesture.x0, e.clientY - handleClickGesture.y0);
+        if (d > HANDLE_CLICK_MAX_MOVE) handleClickGesture = null;
+      }
+      if (chalkTapGesture && e.pointerId === chalkTapGesture.pointerId) {
+        const d = Math.hypot(e.clientX - chalkTapGesture.x0, e.clientY - chalkTapGesture.y0);
+        if (d > CHALK_TAP_MAX_MOVE) chalkTapGesture = null;
+      }
+    });
+
+    renderer.domElement.addEventListener('pointerup', (e) => {
+      if (viewMode === 'draw' && isDrawing && e.pointerId === drawPointerId) {
+        isDrawing = false;
+        drawPointerId = null;
+        lastDrawUv = null;
+        controls.enablePan = true;
+        if (chalkFace) {
+          const st = undoStacks[chalkFace];
+          if (st) {
+            st.push(chalkSnapshotDataUrl(chalkFace));
+            while (st.length > UNDO_MAX) st.shift();
+          }
+          persistChalk(chalkFace);
+        }
+        try {
+          renderer.domElement.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+        return;
+      }
+
+      if (handleClickGesture && e.pointerId === handleClickGesture.pointerId) {
+        const g = handleClickGesture;
+        handleClickGesture = null;
+        const d = Math.hypot(e.clientX - g.x0, e.clientY - g.y0);
+        const dt = performance.now() - g.t0;
+        if (d > HANDLE_CLICK_MAX_MOVE || dt > 650) return;
+        doorOpen = !doorOpen;
+        syncDoorButtonLabel();
+      }
+
+      if (chalkTapGesture && e.pointerId === chalkTapGesture.pointerId) {
+        const g = chalkTapGesture;
+        chalkTapGesture = null;
+        const d = Math.hypot(e.clientX - g.x0, e.clientY - g.y0);
+        const dt = performance.now() - g.t0;
+        if (d > CHALK_TAP_MAX_MOVE || dt > CHALK_TAP_MAX_MS) return;
+        enterChalkDraw(g.hit, g.face);
+      }
+    });
+
+    renderer.domElement.addEventListener('pointercancel', () => {
+      handleClickGesture = null;
+      chalkTapGesture = null;
+      isDrawing = false;
+      drawPointerId = null;
+      lastDrawUv = null;
+      if (viewMode === 'draw') controls.enablePan = true;
+    });
+    window.addEventListener('blur', () => {
+      handleClickGesture = null;
+      chalkTapGesture = null;
+      if (isDrawing) {
+        isDrawing = false;
+        drawPointerId = null;
+        lastDrawUv = null;
+        if (viewMode === 'draw') controls.enablePan = true;
+      }
+    });
+
+    function modelUrlCandidates() {
+      const pageUrl = new URL(window.location.href);
+      const urls = [
+        new URL('minsk_fridge.glb', pageUrl).href,
+        new URL('./minsk_fridge.glb', pageUrl).href,
+        new URL('../minsk_fridge.glb', pageUrl).href,
+      ];
+      return [...new Set(urls)];
+    }
+
+    function loadFridgeModel() {
+      if (window.location.protocol === 'file:') {
+        showErr(
+          'This page is opened as a local file (file://). Browsers block loading minsk_fridge.glb, so the fridge will not appear.\n\n' +
+            'Fix: open a terminal in this folder and run ./serve.sh (or: python3 -m http.server 8080), then visit http://127.0.0.1:8080/\n\n' +
+            'Keep minsk_fridge.glb in the same folder as index.html (you can copy it from the Sketchfab export).'
+        );
+        return;
+      }
+
+      const urls = modelUrlCandidates();
+      let idx = 0;
+
+      function failAll(lastErr) {
+        const tried = urls.map((u) => ' • ' + u).join('\n');
+        const msg = lastErr && lastErr.message ? lastErr.message + '\n\n' : '';
+        showErr(
+          msg +
+            'Could not load minsk_fridge.glb. Tried:\n' +
+            tried +
+            '\n\nPlace the .glb next to index.html and serve this folder over HTTP (see serve.sh).'
+        );
+      }
+
+      function tryUrl(i, lastErr) {
+        if (i >= urls.length) {
+          failAll(lastErr);
+          return;
+        }
+        loader.load(
+          urls[i],
+          (gltf) => {
+            errEl.classList.remove('is-visible');
+            onFridgeLoaded(gltf);
+          },
+          undefined,
+          (err) => tryUrl(i + 1, err || lastErr)
+        );
+      }
+
+      tryUrl(0, null);
+    }
+
+    function onFridgeLoaded(gltf) {
+        const root = gltf.scene;
+        modelRoot = root;
+        scene.add(root);
+
+        doorPivot = root.getObjectByName('Door_low');
+        if (!doorPivot) {
+          root.traverse((o) => {
+            if (o.name && /door/i.test(o.name)) {
+              if (!doorPivot || o.name === 'Door_low') doorPivot = o;
+            }
+          });
+        }
+
+        doorPanelMesh = null;
+        if (doorPivot) {
+          doorPanelMesh = doorPivot.getObjectByName('Door_low_Doors_0');
+          if (!doorPanelMesh || !doorPanelMesh.isMesh) {
+            doorPivot.traverse((o) => {
+              if (o.isMesh && !doorPanelMesh) doorPanelMesh = o;
+            });
+          }
+        }
+
+        const fridgeRoot = root.getObjectByName('Fridge_low');
+        fridgePanelMesh = fridgeRoot
+          ? fridgeRoot.getObjectByName('Fridge_low_Fridge_0')
+          : null;
+        if (!fridgePanelMesh) {
+          root.traverse((o) => {
+            if (o.isMesh && o.name === 'Fridge_low_Fridge_0') fridgePanelMesh = o;
+          });
+        }
+
+        const box = new THREE.Box3().setFromObject(root);
+        const size0 = box.getSize(new THREE.Vector3());
+        if (!isFinite(box.min.x) || size0.lengthSq() < 1e-20) {
+          scene.remove(root);
+          showErr(
+            'minsk_fridge.glb loaded but the scene has no usable geometry. Re-download the model or check the file is not corrupt.'
+          );
+          return;
+        }
+
+        const center = box.getCenter(new THREE.Vector3());
+        root.position.sub(center);
+
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+        const fit = 1.15 / maxDim;
+        modelFitScale = maxDim * fit;
+        root.scale.multiplyScalar(fit);
+
+        const box2 = new THREE.Box3().setFromObject(root);
+        const c2 = box2.getCenter(new THREE.Vector3());
+        modelCenter.copy(c2);
+        controls.target.copy(c2);
+
+        const dist = maxDim * fit * 1.8;
+        camera.position.set(c2.x + dist * 0.75, c2.y + dist * 0.35, c2.z + dist * 0.85);
+        camera.near = Math.max(0.001, dist / 200);
+        camera.far = dist * 50;
+        camera.updateProjectionMatrix();
+
+        if (doorPivot) {
+          doorOrigPos.copy(doorPivot.position);
+          openSnap = clonePose(poseFromDoor());
+          closedSnap = clonePose(DOOR_POSE_CLOSED);
+          doorOpen = false;
+          doorT = 0;
+          applyPoseToDoor(closedSnap);
+          syncDoorButtonLabel();
+        }
+
+        if (fridgePanelMesh) {
+          const fm = fridgePanelMesh.material;
+          const m = Array.isArray(fm) ? fm[0] : fm;
+          patchFridgeMaterial(m);
+          if (uFridgeShellCenter) {
+            new THREE.Box3().setFromObject(fridgePanelMesh).getCenter(uFridgeShellCenter.value);
+          }
+          if (uFridgeBackOut) {
+            doorOutsideWorldDir(tmpVec3a);
+            tmpVec3a.y = 0;
+            if (tmpVec3a.lengthSq() < 1e-8) tmpVec3a.set(0, 0, 1);
+            tmpVec3a.normalize();
+            uFridgeBackOut.value.copy(tmpVec3a).multiplyScalar(-1);
+          }
+        }
+        if (doorPanelMesh) {
+          const dm = doorPanelMesh.material;
+          const m = Array.isArray(dm) ? dm[0] : dm;
+          patchDoorMaterial(m);
+        }
+
+        restoreChalkFromStorage('door');
+        restoreChalkFromStorage('left');
+        restoreChalkFromStorage('right');
+        restoreChalkFromStorage('top');
+        restoreChalkFromStorage('back');
+
+        controls.update();
+    }
+
+    loadFridgeModel();
+
+    doorBtn.addEventListener('click', () => {
+      doorOpen = !doorOpen;
+      syncDoorButtonLabel();
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function tick() {
+      const dt = clock.getDelta();
+      if (doorPivot) {
+        const target = doorOpen ? 1 : 0;
+        const k = 1 - Math.exp(-DOOR_SPEED * dt);
+        doorT += (target - doorT) * k;
+        applyPoseToDoor(lerpPose(closedSnap, openSnap, doorT));
+      }
+
+      if (camAnim) {
+        const elapsed = (performance.now() - camAnim.t0) / 1000;
+        const u = Math.min(1, elapsed / camAnim.duration);
+        const s = u * u * (3 - 2 * u);
+        camera.position.lerpVectors(camAnim.fromPos, camAnim.toPos, s);
+        controls.target.lerpVectors(camAnim.fromTgt, camAnim.toTgt, s);
+        if (u >= 1) camAnim = null;
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    }
+
+    tick();
+  </script>
+</body>
+</html>
