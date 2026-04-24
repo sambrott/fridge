@@ -547,6 +547,33 @@
     }
 
     /**
+     * Fridge body faces only (world Y-up). Top is chosen before back so bevels
+     * on the lid are not mistaken for the rear panel.
+     */
+    function classifyFridgeShellFace(n) {
+      const nx = n.x;
+      const ny = n.y;
+      const nz = n.z;
+      const ax = Math.abs(nx);
+      const ay = Math.abs(ny);
+      const az = Math.abs(nz);
+      if (!uFridgeBackOut) return null;
+      const towardBack = n.dot(uFridgeBackOut.value);
+
+      if (ny > 0.28 && ay >= ax - 0.02 && ay >= az - 0.02) return 'top';
+      if (Math.abs(ny) < 0.55 && towardBack > 0.2) return 'back';
+      if (ax >= az && ax >= ay * 0.85) {
+        if (nx < -0.22) return 'left';
+        if (nx > 0.22) return 'right';
+      }
+      if (ny > 0.12 && ay >= ax && ay >= az) return 'top';
+      if (Math.abs(ny) < 0.6 && towardBack > 0.08 && az >= ax * 0.85) return 'back';
+      if (nx < -0.18 && ax >= 0.45) return 'left';
+      if (nx > 0.18 && ax >= 0.45) return 'right';
+      return null;
+    }
+
+    /**
      * Drawable chalk panel: outer shell only (not cavity). Door: outside face only.
      */
     function classifyChalkSurface(hit) {
@@ -561,9 +588,7 @@
         : hit.object === doorPanelMesh;
 
       if (onDoor) {
-        if (Math.abs(n.y) > 0.94) return null;
-        tmpVec3b.copy(hit.point).sub(doorChalkCenter).normalize();
-        if (n.dot(tmpVec3b) < -0.14) return null;
+        if (Math.abs(n.y) > 0.985) return null;
         return 'door';
       }
       if (hit.object === fridgePanelMesh) {
@@ -571,30 +596,27 @@
           tmpVec3b.copy(hit.point).sub(uFridgeShellCenter.value).normalize();
           if (n.dot(tmpVec3b) < -0.06) return null;
         }
-        const nx = n.x;
-        const ny = n.y;
-        const nz = n.z;
-        const ax = Math.abs(nx);
-        const ay = Math.abs(ny);
-        const az = Math.abs(nz);
-        const m = Math.max(ax, Math.max(ay, az));
-        const towardBack = uFridgeBackOut ? n.dot(uFridgeBackOut.value) : nz;
-        const g = 0.11;
-        const isTop = ay >= m - g && ny > 0.05;
-        const isBack = !isTop && az >= m - g && towardBack > -0.1 && ax < 0.94;
-        const isLeft = !isTop && !isBack && ax >= m - g && nx < -0.06;
-        const isRight = !isTop && !isBack && ax >= m - g && nx > 0.06;
-        if (isTop) return 'top';
-        if (isBack) return 'back';
-        if (isLeft) return 'left';
-        if (isRight) return 'right';
-        if (ay >= ax && ay >= az && ny > 0.04) return 'top';
-        if (az >= ax && az >= ay && towardBack > -0.15) return 'back';
-        if (ax >= ay && ax >= az && nx < -0.04) return 'left';
-        if (ax >= ay && ax >= az && nx > 0.04) return 'right';
-        return null;
+        return classifyFridgeShellFace(n);
       }
       return null;
+    }
+
+    /** First ray hit that classifies as a drawable chalk face (skips bevel strips). */
+    function pickChalkTapFromHits(hits) {
+      for (let i = 0; i < hits.length; i++) {
+        const face = classifyChalkSurface(hits[i]);
+        if (face) return { hit: hits[i], face };
+      }
+      return null;
+    }
+
+    function syncFridgeBackDir() {
+      if (!uFridgeBackOut || !fridgePanelMesh || !doorPanelMesh) return;
+      doorOutsideWorldDir(tmpVec3a);
+      tmpVec3a.y = 0;
+      if (tmpVec3a.lengthSq() < 1e-8) tmpVec3a.set(0, 0, 1);
+      tmpVec3a.normalize();
+      uFridgeBackOut.value.copy(tmpVec3a).multiplyScalar(-1);
     }
 
     function createChalkLayer() {
@@ -768,7 +790,7 @@
       const wn = worldNormalInto(h, tmpVec3d);
       if (wn) {
         tmpVec3c.copy(camera.position).sub(h.point).normalize();
-        if (wn.dot(tmpVec3c) < -0.28) return null;
+        if (wn.dot(tmpVec3c) < -0.42) return null;
       }
       return h;
     }
@@ -809,10 +831,17 @@
       controls.minDistance = 0.08;
       controls.maxDistance = 4;
 
-      const n = hit.normal.clone().normalize();
+      const wn = worldNormalInto(hit, tmpVec3a);
+      const nCam = wn
+        ? wn.clone()
+        : hit.normal
+          ? hit.normal.clone()
+          : new THREE.Vector3(0, 0, 1);
+      if (nCam.lengthSq() < 1e-10) nCam.set(0, 0, 1);
+      nCam.normalize();
       const dist = THREE.MathUtils.clamp(modelFitScale * 0.42, 0.18, 0.52);
       const toTarget = hit.point.clone();
-      const toPos = hit.point.clone().add(n.multiplyScalar(dist));
+      const toPos = hit.point.clone().add(nCam.multiplyScalar(dist));
 
       startCameraAnim(toPos, toTarget, 0.58);
     }
@@ -905,25 +934,23 @@
               float ax = abs( nn.x );
               float ay = abs( nn.y );
               float az = abs( nn.z );
-              float m = max( ax, max( ay, az ) );
               vec3 backDir = normalize( uFridgeBackOut );
               float towardBack = dot( nn, backDir );
               vec4 chalkS = vec4( 0.0 );
               float useChalk = 0.0;
-              float g = 0.11;
-              bool t0 = ( ay >= m - g ) && nn.y > 0.05;
-              bool b0 = !t0 && ( az >= m - g ) && towardBack > -0.1 && ax < 0.94;
-              bool l0 = !t0 && !b0 && ( ax >= m - g ) && nn.x < -0.06;
-              bool r0 = !t0 && !b0 && ( ax >= m - g ) && nn.x > 0.06;
-              bool unmatched = !t0 && !b0 && !l0 && !r0;
-              bool fbT = unmatched && ( ay >= ax && ay >= az && nn.y > 0.04 );
-              bool fbB = unmatched && !fbT && ( az >= ax && az >= ay && towardBack > -0.15 );
-              bool fbL = unmatched && !fbT && !fbB && ( ax >= ay && ax >= az && nn.x < -0.04 );
-              bool fbR = unmatched && !fbT && !fbB && !fbL && ( ax >= ay && ax >= az && nn.x > 0.04 );
-              bool isTop = t0 || fbT;
-              bool isBack = b0 || fbB;
-              bool isLeft = l0 || fbL;
-              bool isRight = r0 || fbR;
+              bool t1 = nn.y > 0.28 && ay >= ax - 0.02 && ay >= az - 0.02;
+              bool b1 = !t1 && abs( nn.y ) < 0.55 && towardBack > 0.2;
+              bool l1 = !t1 && !b1 && ax >= az && ax >= ay * 0.85 && nn.x < -0.22;
+              bool r1 = !t1 && !b1 && !l1 && ax >= az && ax >= ay * 0.85 && nn.x > 0.22;
+              bool um = !t1 && !b1 && !l1 && !r1;
+              bool t2 = um && nn.y > 0.12 && ay >= ax && ay >= az;
+              bool b2 = um && !t2 && abs( nn.y ) < 0.6 && towardBack > 0.08 && az >= ax * 0.85;
+              bool l2 = um && !t2 && !b2 && nn.x < -0.18 && ax >= 0.45;
+              bool r2 = um && !t2 && !b2 && !l2 && nn.x > 0.18 && ax >= 0.45;
+              bool isTop = t1 || t2;
+              bool isBack = b1 || b2;
+              bool isLeft = l1 || l2;
+              bool isRight = r1 || r2;
               if ( isTop ) {
                 useChalk = 1.0;
                 chalkS = texture( uChalkTop, vMapUv );
@@ -1109,15 +1136,15 @@
       }
 
       const hits = raycastChalkMeshes(e.clientX, e.clientY);
-      const face = hits.length ? classifyChalkSurface(hits[0]) : null;
-      if (face) {
+      const picked = pickChalkTapFromHits(hits);
+      if (picked) {
         chalkTapGesture = {
           pointerId: e.pointerId,
           x0: e.clientX,
           y0: e.clientY,
           t0: performance.now(),
-          hit: hits[0],
-          face,
+          hit: picked.hit,
+          face: picked.face,
         };
       }
     }
@@ -1411,6 +1438,7 @@
         doorT += (target - doorT) * k;
         applyPoseToDoor(lerpPose(closedSnap, openSnap, doorT));
         refreshDoorChalkCenter();
+        syncFridgeBackDir();
       }
 
       if (camAnim) {
