@@ -1077,6 +1077,9 @@
             renderer.domElement.setPointerCapture(e.pointerId);
           } catch (_) {}
           e.stopImmediatePropagation();
+        } else if (!raycastChalkMeshes(e.clientX, e.clientY).length) {
+          exitChalkDraw();
+          e.stopImmediatePropagation();
         }
         return;
       }
