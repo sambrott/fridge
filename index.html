@@ -186,6 +186,18 @@
       color: rgba(255, 255, 255, 0.38);
       white-space: nowrap;
     }
+    #attr .attr-credits-desktop {
+      display: none;
+      min-width: 0;
+    }
+    #attr .attr-credits-desktop a {
+      pointer-events: auto;
+      color: rgba(200, 210, 255, 0.55);
+      text-decoration: none;
+    }
+    #attr .attr-credits-desktop a:hover {
+      text-decoration: underline;
+    }
     #attr .credits-details {
       margin: 0;
       min-width: 0;
@@ -205,15 +217,11 @@
       text-decoration: underline;
     }
     @media (min-width: 641px) {
-      #attr .credits-details {
-        display: contents;
-      }
-      #attr .credits-summary {
-        display: none !important;
-      }
-      #attr .credits-body {
+      #attr .attr-credits-desktop {
         display: inline;
-        min-width: 0;
+      }
+      #attr .credits-details {
+        display: none !important;
       }
     }
     @media (max-width: 640px) {
@@ -322,6 +330,11 @@
   </div>
   <p id="attr">
     <span class="footer-copy">© sam.brott 2026</span>
+    <span class="attr-credits-desktop">
+      Model “Mińsk Fridge” by Michalina Gąsienica-Laskowy ·
+      <a href="https://sketchfab.com/3d-models/minsk-fridge-55325e3b09ac48b2ae3803bccf804741" rel="noopener noreferrer" target="_blank">Sketchfab</a>
+      · CC&nbsp;BY‑NC‑SA&nbsp;4.0
+    </span>
     <details class="credits-details" id="credits-details">
       <summary class="credits-summary">Credits</summary>
       <div class="credits-body">
@@ -401,8 +414,6 @@
       if (!creditsDetails) return;
       if (window.matchMedia('(max-width: 640px)').matches) {
         creditsDetails.removeAttribute('open');
-      } else {
-        creditsDetails.setAttribute('open', '');
       }
     }
     syncCreditsPanelOpen();
