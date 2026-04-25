@@ -29,7 +29,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      z-index: 10;
+      z-index: 12;
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
@@ -165,14 +165,14 @@
     }
     #attr {
       position: fixed;
-      left: max(16px, env(safe-area-inset-left));
-      bottom: max(72px, calc(12px + env(safe-area-inset-bottom)));
-      z-index: 10;
+      left: max(12px, env(safe-area-inset-left));
+      bottom: max(8px, env(safe-area-inset-bottom));
+      z-index: 11;
       display: flex;
       flex-wrap: wrap;
       align-items: flex-end;
       align-content: flex-end;
-      gap: 0.6em 1em;
+      gap: 0.5em 0.9em;
       max-width: min(56rem, calc(100vw - 32px - env(safe-area-inset-left)));
       margin: 0;
       font-size: 10px;
@@ -186,16 +186,66 @@
       color: rgba(255, 255, 255, 0.38);
       white-space: nowrap;
     }
-    #attr .attr-credits {
+    #attr .credits-details {
+      margin: 0;
       min-width: 0;
     }
-    #attr a {
+    #attr .credits-summary {
+      list-style: none;
+    }
+    #attr .credits-summary::-webkit-details-marker {
+      display: none;
+    }
+    #attr .credits-body a {
       pointer-events: auto;
       color: rgba(200, 210, 255, 0.55);
       text-decoration: none;
     }
-    #attr a:hover {
+    #attr .credits-body a:hover {
       text-decoration: underline;
+    }
+    @media (min-width: 641px) {
+      #attr .credits-details {
+        display: contents;
+      }
+      #attr .credits-summary {
+        display: none !important;
+      }
+      #attr .credits-body {
+        display: inline;
+        min-width: 0;
+      }
+    }
+    @media (max-width: 640px) {
+      #attr {
+        flex-direction: column;
+        align-items: flex-start;
+        align-content: flex-start;
+        gap: 0.15em 0;
+        max-width: min(11.5rem, calc(50vw - 36px));
+        bottom: max(10px, env(safe-area-inset-bottom));
+      }
+      #attr .credits-details {
+        pointer-events: auto;
+        width: 100%;
+      }
+      #attr .credits-summary {
+        display: block;
+        width: fit-content;
+        font-size: 10px;
+        font-weight: 500;
+        color: rgba(220, 228, 255, 0.88);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+        pointer-events: auto;
+      }
+      #attr .credits-body {
+        margin-top: 0.35em;
+        font-size: 10px;
+        line-height: 1.35;
+        color: rgba(255, 255, 255, 0.36);
+      }
     }
     #err {
       position: fixed;
@@ -218,7 +268,7 @@
       left: 0;
       right: 0;
       z-index: 9;
-      margin: 0;
+      margin: 0 auto;
       padding: 20px 24px max(16px, env(safe-area-inset-top));
       text-align: center;
       font-size: clamp(2.82rem, 7.2vw, 3.6rem);
@@ -228,9 +278,23 @@
       color: rgba(255, 255, 255, 0.94);
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
       pointer-events: none;
+      max-width: 100%;
+    }
+    @media (max-width: 640px) {
+      #intro-tagline {
+        font-size: clamp(0.72rem, 2.85vw, 0.88rem);
+        line-height: 1.3;
+        letter-spacing: 0.015em;
+        padding: 10px max(12px, env(safe-area-inset-left)) 6px max(12px, env(safe-area-inset-right));
+        max-width: min(19rem, calc(100vw - 20px));
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+      }
     }
     #intro-tagline.is-hidden {
-      display: none;
+      display: none !important;
     }
   </style>
 </head>
@@ -258,11 +322,14 @@
   </div>
   <p id="attr">
     <span class="footer-copy">© sam.brott 2026</span>
-    <span class="attr-credits">
-      Model “Mińsk Fridge” by Michalina Gąsienica-Laskowy ·
-      <a href="https://sketchfab.com/3d-models/minsk-fridge-55325e3b09ac48b2ae3803bccf804741" rel="noopener noreferrer" target="_blank">Sketchfab</a>
-      · CC&nbsp;BY‑NC‑SA&nbsp;4.0
-    </span>
+    <details class="credits-details" id="credits-details">
+      <summary class="credits-summary">Credits</summary>
+      <div class="credits-body">
+        Model “Mińsk Fridge” by Michalina Gąsienica-Laskowy ·
+        <a href="https://sketchfab.com/3d-models/minsk-fridge-55325e3b09ac48b2ae3803bccf804741" rel="noopener noreferrer" target="_blank">Sketchfab</a>
+        · CC&nbsp;BY‑NC‑SA&nbsp;4.0
+      </div>
+    </details>
   </p>
   <div id="hud">
     <button type="button" id="door-btn" aria-pressed="false">Open door</button>
@@ -329,6 +396,17 @@
     const chalkEraserBtn = document.getElementById('chalk-eraser');
     const chalkUndoBtn = document.getElementById('chalk-undo');
     const introTagline = document.getElementById('intro-tagline');
+    const creditsDetails = document.getElementById('credits-details');
+    function syncCreditsPanelOpen() {
+      if (!creditsDetails) return;
+      if (window.matchMedia('(max-width: 640px)').matches) {
+        creditsDetails.removeAttribute('open');
+      } else {
+        creditsDetails.setAttribute('open', '');
+      }
+    }
+    syncCreditsPanelOpen();
+    window.addEventListener('resize', syncCreditsPanelOpen);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xb91c1c);
