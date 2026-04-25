@@ -198,29 +198,15 @@
     #attr .attr-credits-desktop a:hover {
       text-decoration: underline;
     }
-    #attr .credits-details {
+    #attr .credits-mobile {
       margin: 0;
       min-width: 0;
-    }
-    #attr .credits-summary {
-      list-style: none;
-    }
-    #attr .credits-summary::-webkit-details-marker {
-      display: none;
-    }
-    #attr .credits-body a {
-      pointer-events: auto;
-      color: rgba(200, 210, 255, 0.55);
-      text-decoration: none;
-    }
-    #attr .credits-body a:hover {
-      text-decoration: underline;
     }
     @media (min-width: 641px) {
       #attr .attr-credits-desktop {
         display: inline;
       }
-      #attr .credits-details {
+      #attr .credits-mobile {
         display: none !important;
       }
     }
@@ -231,52 +217,63 @@
         align-content: flex-start;
         gap: 0;
         max-width: min(14rem, calc(100vw - 120px));
-        /* Sit above the door HUD strip so the control isn’t covered or clipped. */
         bottom: max(76px, calc(20px + env(safe-area-inset-bottom)));
-        pointer-events: auto;
+        z-index: 25;
+        pointer-events: none;
       }
       #attr .footer-copy {
         display: none;
       }
-      #attr .credits-details {
+      #attr .credits-mobile {
         display: block;
         width: 100%;
         pointer-events: auto;
-        -webkit-tap-highlight-color: rgba(255, 255, 255, 0.15);
+        -webkit-tap-highlight-color: rgba(255, 255, 255, 0.2);
       }
-      #attr .credits-summary {
+      #attr .credits-mobile-btn {
         display: block;
         width: fit-content;
         max-width: 100%;
+        margin: 0;
+        padding: 8px 0;
+        border: none;
+        background: none;
+        font: inherit;
         font-size: 12px;
         font-weight: 600;
-        color: #f1f5f9;
+        color: #f8fafc;
         text-decoration: underline;
         text-underline-offset: 3px;
         cursor: pointer;
-        pointer-events: auto;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-        padding: 6px 0;
-        user-select: none;
+        text-align: left;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        touch-action: manipulation;
       }
-      #attr .credits-summary:focus-visible {
-        outline: 2px solid rgba(255, 255, 255, 0.55);
-        outline-offset: 2px;
+      #attr .credits-mobile-btn:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.65);
+        outline-offset: 3px;
         border-radius: 2px;
       }
-      #attr .credits-body {
-        margin-top: 0.4em;
+      #attr .credits-mobile-panel {
+        margin-top: 0.35em;
         font-size: 10px;
         line-height: 1.4;
-        color: rgba(255, 255, 255, 0.36);
+        color: rgba(255, 255, 255, 0.88);
+      }
+      #attr .credits-mobile-panel[hidden] {
+        display: none !important;
       }
       #attr .credits-mobile-copy {
         margin: 0 0 0.45em;
-        color: rgba(255, 255, 255, 0.4);
+        color: rgba(255, 255, 255, 0.92);
         white-space: nowrap;
       }
       #attr .credits-mobile-model {
         margin: 0;
+        color: rgba(255, 255, 255, 0.82);
+      }
+      #attr .credits-mobile-panel a {
+        color: rgba(200, 220, 255, 0.95);
       }
     }
     #err {
@@ -372,9 +369,11 @@
       <a href="https://sketchfab.com/3d-models/minsk-fridge-55325e3b09ac48b2ae3803bccf804741" rel="noopener noreferrer" target="_blank">Sketchfab</a>
       · CC&nbsp;BY‑NC‑SA&nbsp;4.0
     </span>
-    <details class="credits-details" id="credits-details">
-      <summary class="credits-summary">credits</summary>
-      <div class="credits-body">
+    <div class="credits-mobile" id="credits-mobile">
+      <button type="button" class="credits-mobile-btn" id="credits-mobile-btn" aria-expanded="false" aria-controls="credits-mobile-panel">
+        credits
+      </button>
+      <div class="credits-mobile-panel" id="credits-mobile-panel" hidden>
         <p class="credits-mobile-copy">© sam.brott 2026</p>
         <p class="credits-mobile-model">
           Model “Mińsk Fridge” by Michalina Gąsienica-Laskowy ·
@@ -382,7 +381,7 @@
           · CC&nbsp;BY‑NC‑SA&nbsp;4.0
         </p>
       </div>
-    </details>
+    </div>
   </p>
   <div id="hud">
     <button type="button" id="door-btn" aria-pressed="false">Open door</button>
@@ -449,15 +448,15 @@
     const chalkEraserBtn = document.getElementById('chalk-eraser');
     const chalkUndoBtn = document.getElementById('chalk-undo');
     const introTagline = document.getElementById('intro-tagline');
-    const creditsDetails = document.getElementById('credits-details');
-    function syncCreditsPanelOpen() {
-      if (!creditsDetails) return;
-      if (window.matchMedia('(max-width: 640px)').matches) {
-        creditsDetails.removeAttribute('open');
-      }
+    const creditsMobileBtn = document.getElementById('credits-mobile-btn');
+    const creditsMobilePanel = document.getElementById('credits-mobile-panel');
+    if (creditsMobileBtn && creditsMobilePanel) {
+      creditsMobileBtn.addEventListener('click', () => {
+        const willShow = creditsMobilePanel.hidden;
+        creditsMobilePanel.hidden = !willShow;
+        creditsMobileBtn.setAttribute('aria-expanded', String(willShow));
+      });
     }
-    syncCreditsPanelOpen();
-    window.addEventListener('resize', syncCreditsPanelOpen);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xb91c1c);
@@ -736,13 +735,18 @@
       const towardBack = n.dot(uFridgeBackOut.value);
 
       if (ny > 0.28 && ay >= ax - 0.02 && ay >= az - 0.02) return 'top';
-      if (Math.abs(ny) < 0.55 && towardBack > 0.2) return 'back';
+
+      const flatish = Math.abs(ny) < 0.58;
+      if (flatish && towardBack > 0.08) return 'back';
+      if (flatish && towardBack > 0.04 && az >= ax * 0.8 && az >= ay * 0.72) return 'back';
+      if (flatish && az >= Math.max(ax, ay) - 0.1 && towardBack > -0.04) return 'back';
+
       if (ax >= az && ax >= ay * 0.85) {
         if (nx < -0.22) return 'left';
         if (nx > 0.22) return 'right';
       }
       if (ny > 0.12 && ay >= ax && ay >= az) return 'top';
-      if (Math.abs(ny) < 0.6 && towardBack > 0.08 && az >= ax * 0.85) return 'back';
+      if (Math.abs(ny) < 0.62 && towardBack > 0.03 && az >= ax * 0.78) return 'back';
       if (nx < -0.18 && ax >= 0.45) return 'left';
       if (nx > 0.18 && ax >= 0.45) return 'right';
       return null;
@@ -756,14 +760,13 @@
       const n = worldNormalInto(hit, tmpVec3d);
       if (!n) return null;
       tmpVec3c.copy(camera.position).sub(hit.point).normalize();
-      if (n.dot(tmpVec3c) < 0.05) return null;
+      if (n.dot(tmpVec3c) < 0.02) return null;
 
       const onDoor = doorChalkMeshes.length
         ? doorChalkMeshes.indexOf(hit.object) !== -1
         : hit.object === doorPanelMesh;
 
       if (onDoor) {
-        if (Math.abs(n.y) > 0.985) return null;
         return 'door';
       }
       if (hit.object === fridgePanelMesh) {
@@ -965,7 +968,7 @@
       const wn = worldNormalInto(h, tmpVec3d);
       if (wn) {
         tmpVec3c.copy(camera.position).sub(h.point).normalize();
-        if (wn.dot(tmpVec3c) < -0.42) return null;
+        if (wn.dot(tmpVec3c) < -0.55) return null;
       }
       return h;
     }
@@ -1115,16 +1118,17 @@
               vec4 chalkS = vec4( 0.0 );
               float useChalk = 0.0;
               bool t1 = nn.y > 0.28 && ay >= ax - 0.02 && ay >= az - 0.02;
-              bool b1 = !t1 && abs( nn.y ) < 0.55 && towardBack > 0.2;
+              bool b1 = !t1 && abs( nn.y ) < 0.58 && towardBack > 0.08;
               bool l1 = !t1 && !b1 && ax >= az && ax >= ay * 0.85 && nn.x < -0.22;
               bool r1 = !t1 && !b1 && !l1 && ax >= az && ax >= ay * 0.85 && nn.x > 0.22;
               bool um = !t1 && !b1 && !l1 && !r1;
               bool t2 = um && nn.y > 0.12 && ay >= ax && ay >= az;
-              bool b2 = um && !t2 && abs( nn.y ) < 0.6 && towardBack > 0.08 && az >= ax * 0.85;
-              bool l2 = um && !t2 && !b2 && nn.x < -0.18 && ax >= 0.45;
-              bool r2 = um && !t2 && !b2 && !l2 && nn.x > 0.18 && ax >= 0.45;
+              bool b2 = um && !t2 && abs( nn.y ) < 0.58 && towardBack > 0.04 && az >= ax * 0.8 && az >= ay * 0.72;
+              bool b2b = um && !t2 && !b2 && abs( nn.y ) < 0.58 && az >= max( ax, ay ) - 0.1 && towardBack > -0.04;
+              bool l2 = um && !t2 && !b2 && !b2b && nn.x < -0.18 && ax >= 0.45;
+              bool r2 = um && !t2 && !b2 && !b2b && !l2 && nn.x > 0.18 && ax >= 0.45;
               bool isTop = t1 || t2;
-              bool isBack = b1 || b2;
+              bool isBack = b1 || b2 || b2b;
               bool isLeft = l1 || l2;
               bool isRight = r1 || r2;
               if ( isTop ) {
@@ -1180,7 +1184,7 @@
             vec3 nn = normalize( vWorldNormal );
             vec3 radial = normalize( vWorldPos - uFridgeShellCenter );
             float facing = dot( nn, radial );
-            float outerAmt = smoothstep( -0.03, 0.06, facing );
+            float outerAmt = smoothstep( -0.1, 0.12, facing );
             if ( outerAmt > 0.001 ) {
               vec3 baseCol = diffuseColor.rgb;
               vec4 chalkS = texture( uChalkDoor, vMapUv );
