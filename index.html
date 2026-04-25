@@ -165,16 +165,28 @@
     }
     #attr {
       position: fixed;
-      bottom: 72px;
-      left: 50%;
-      transform: translateX(-50%);
+      left: max(16px, env(safe-area-inset-left));
+      bottom: max(72px, calc(12px + env(safe-area-inset-bottom)));
       z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.6em 1em;
+      max-width: min(56rem, calc(100vw - 32px - env(safe-area-inset-left)));
+      margin: 0;
       font-size: 10px;
       color: rgba(255, 255, 255, 0.32);
-      text-align: center;
-      max-width: 92vw;
+      text-align: left;
       pointer-events: none;
       line-height: 1.35;
+    }
+    #attr .footer-copy {
+      flex-shrink: 0;
+      color: rgba(255, 255, 255, 0.38);
+      white-space: nowrap;
+    }
+    #attr .attr-credits {
+      min-width: 0;
     }
     #attr a {
       pointer-events: auto;
@@ -244,9 +256,12 @@
     </div>
   </div>
   <p id="attr">
-    Model “Mińsk Fridge” by Michalina Gąsienica-Laskowy ·
-    <a href="https://sketchfab.com/3d-models/minsk-fridge-55325e3b09ac48b2ae3803bccf804741" rel="noopener noreferrer" target="_blank">Sketchfab</a>
-    · CC&nbsp;BY‑NC‑SA&nbsp;4.0
+    <span class="footer-copy">© 2026 sam.brott</span>
+    <span class="attr-credits">
+      Model “Mińsk Fridge” by Michalina Gąsienica-Laskowy ·
+      <a href="https://sketchfab.com/3d-models/minsk-fridge-55325e3b09ac48b2ae3803bccf804741" rel="noopener noreferrer" target="_blank">Sketchfab</a>
+      · CC&nbsp;BY‑NC‑SA&nbsp;4.0
+    </span>
   </p>
   <div id="hud">
     <button type="button" id="door-btn" aria-pressed="false">Open door</button>
